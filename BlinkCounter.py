@@ -81,7 +81,7 @@ while True:
             counter = 1
         if counter != 0:
             counter += 1
-            if counter > 15:    #Wait 1 frames after raising blinkCount 
+            if counter > 15:    #Wait frames after raising blinkCount 
                 counter = 0
                 color = purple_color
             
