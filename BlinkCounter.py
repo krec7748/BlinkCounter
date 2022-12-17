@@ -31,31 +31,41 @@ ratio_list = list()
 #Initial value of blink count
 blinkCount = 0
 
-#Initial value of frame counter
-counter = 0
+#Initial value of frame frame counter
+frameCounter = 0
 
 #Set color
 purple_color = (255, 0, 255)
 green_color = (0, 200, 0)
+color = None #Set initial_color
 
-#Set ratio plot 
+#Set initial live plot
 plotY = LivePlot(int(w / 2), h, [20, 50], invert = True)
 
 while True:
+    
+    #PRACTICE_MODE = True >> Initial loop
     if cap.get(cv2.CAP_PROP_POS_FRAMES) == cap.get(cv2.CAP_PROP_FRAME_COUNT) - 1:
         if PRACTICE_MODE == True:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0) #영상이 멈추지 않음. (다시 첫 프레임으로 되돌아감.)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         else:
             break
     
+    #get frame img, face (result of face detector)
     success, img = cap.read()  
     img, faces = detector.findFaceMesh(img, draw = False)
     
     if faces:
         face = faces[0] #maxFaces = 1
+        
+        #Draw points of left eye
         for id in idList:
-            cv2.circle(img, face[id], 4, purple_color, cv2.FILLED)
-
+            if color is None:
+                cv2.circle(img, face[id], 4, purple_color, cv2.FILLED)
+            else:
+                cv2.circle(img, face[id], 4, color, cv2.FILLED)
+                
+        #Extract major point of left eye
         leftUp = face[159]
         leftDown = face[23]
         leftLeft = face[130]
@@ -64,10 +74,11 @@ while True:
         lengthVer, _ = detector.findDistance(leftUp, leftDown)
         lengthHor, _ = detector.findDistance(leftLeft, leftRight)
         
+        #Draw horizontal line, vertical line of left eye
         #cv2.line(img, leftUp, leftDown, green_color, 3)
         #cv2.line(img, leftLeft, leftRight, green_color, 3)
         
-        #Calculate ratio (lengthVer, lengthHor)
+        #Calculate ratio & Get ratioAvg (lengthVer, lengthHor)
         ratio = int((lengthVer / lengthHor) * 100)
         ratio_list.append(ratio)
         if len(ratio_list) > 3:
@@ -75,26 +86,37 @@ while True:
             
         ratioAvg = sum(ratio_list) / len(ratio_list)
         
-        if ratioAvg < 35 and counter == 0:
+        #If ratioAvg < 35: Count the blink by 1
+        if ratioAvg < 35 and frameCounter == 0:  #
             blinkCount += 1
             color = green_color
-            counter = 1
-        if counter != 0:
-            counter += 1
-            if counter > 15:    #Wait frames after raising blinkCount 
-                counter = 0
+            frameCounter = 1
+        
+        #Wait 15 frames after raising blinkCount (Do not counting of blink)
+        if frameCounter != 0:
+            frameCounter += 1
+            if frameCounter > 15:    
+                frameCounter = 0
                 color = purple_color
-            
+        
+        #Set Texter
         cvzone.putTextRect(img, f"Blink Count: {blinkCount}", (50, 100), colorR = color)
+        
+        #Draw live plot, Stack result (img, liveplot)
         imgPlot = plotY.update(ratioAvg, color)
         imgStack = cvzone.stackImages([img, imgPlot], 2, 1)
-    else:
+    else: #error
         imgStack = cvzone.stackImages([img, img], 2, 1)
     
+    #Draw result (Stack result)
     cv2.imshow("Image", imgStack)
+    
+    #Set frame speed
     cv2.waitKey(25)
     
+    #Update output
     out.write(imgStack)
     
+#Save result & Finish
 out.release()
 cv2.destroyAllWindows()
